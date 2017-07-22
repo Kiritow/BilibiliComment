@@ -1,5 +1,4 @@
 #include <cstdlib>
-#include <cstring>
 #include <string>
 #include <tuple>
 #include <iostream>
@@ -11,7 +10,7 @@ using namespace std;
 
 void FetchVideoComment(int VideoID,int Page,const string& SaveFile)
 {
-    string command="C:\\curl -k \"https://api.bilibili.com/x/v2/reply?jsonp=jsonp&pn="s+
+    string command="curl -k \"https://api.bilibili.com/x/v2/reply?jsonp=jsonp&pn="s+
         to_string(Page)+"&type=1&oid="+to_string(VideoID)+"&sort=0\" > "+SaveFile;
     cout<<"Executing: "<<command<<endl;
     system(command.c_str());
@@ -89,6 +88,7 @@ void GetCommentFromFile(const string& SavedFile,vector<string>& vec)
 
 int main()
 {
+    /// The video id to operate
     int avid=5158497;
 
 

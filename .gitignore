@@ -5,3 +5,7 @@ obj/
 *.layout
 *.dll
 *.txt
+
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user

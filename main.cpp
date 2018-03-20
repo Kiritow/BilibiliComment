@@ -5,23 +5,24 @@
 #include <fstream>
 #include <functional>
 #include "json.hpp"
+#include "NetworkWrapper.h"
 
 using namespace std;
 
-void FetchVideoComment(int VideoID,int Page,const string& SaveFile)
+string FetchVideoComment(int VideoID,int Page)
 {
-    string command="curl -k \"https://api.bilibili.com/x/v2/reply?jsonp=jsonp&pn="s+
-        to_string(Page)+"&type=1&oid="+to_string(VideoID)+"&sort=0\" > "+SaveFile;
-    cout<<"Executing: "<<command<<endl;
-    system(command.c_str());
+	HTTPConnection t;
+	t.setURL("https://api.bilibili.com/x/v2/reply?jsonp=jsonp&pn="s +
+		to_string(Page) + "&type=1&oid=" + to_string(VideoID) + "&sort=0");
+	t.setDataOutputBuffer(nullptr, 0);
+	t.perform();
+	string ret = static_cast<const char*>(t.getDataOutputBuffer());
+	return ret;
 }
 
-tuple<int,int> GetCommentPageCount(const string& SavedFile)
+tuple<int,int> GetCommentPageCount(const string& raw_comment)
 {
-    ifstream ifs(SavedFile);
-    string line;
-    getline(ifs,line);
-    nlohmann::json jobj=nlohmann::json::parse(line);
+    nlohmann::json jobj=nlohmann::json::parse(raw_comment);
     auto jobjDataIter=jobj.find("data");
     auto jobjData_PageIter=jobjDataIter->find("page");
     auto jobjData_Page_CountIter=jobjData_PageIter->find("count");
@@ -29,12 +30,9 @@ tuple<int,int> GetCommentPageCount(const string& SavedFile)
     return make_tuple(*jobjData_Page_CountIter,*jobjData_Page_SizeIter);
 }
 
-void GetCommentFromFile(const string& SavedFile,vector<string>& vec)
+void ParseComment(const string& raw_comment,vector<string>& vec)
 {
-    ifstream ifs(SavedFile);
-    string line;
-    getline(ifs,line);
-    nlohmann::json jobj=nlohmann::json::parse(line);
+    nlohmann::json jobj=nlohmann::json::parse(raw_comment);
     auto jobjDataIter=jobj.find("data");
     auto jobjData_RepliesIter=jobjDataIter->find("replies");
     /// Check if Replies is empty
@@ -86,35 +84,37 @@ void GetCommentFromFile(const string& SavedFile,vector<string>& vec)
     }
 }
 
-int main()
+int ProcessVideo(int avid,const string& savefile)
 {
-    /// The video id to operate
-    int avid=5158497;
-
-
-    FetchVideoComment(avid,1,"save1.txt");
+	string str=FetchVideoComment(avid, 1);
     int cnt,cntperpage;
-    tie(cnt,cntperpage)=GetCommentPageCount("save1.txt");
+    tie(cnt,cntperpage)=GetCommentPageCount(str);
 
     int needPage=cnt/cntperpage+(cnt%cntperpage!=0?1:0);
 
-    cout<<"Totally "<<cnt<<" Comments. "<<endl;
+    cout<<"Totally "<<cnt<<" Comments in "<<needPage<<" pages."<<endl;
 
     vector<string> vec;
-    GetCommentFromFile("save1.txt",vec);
+    ParseComment(str,vec);
 
     for(int i=2;i<=needPage;i++)
     {
-        FetchVideoComment(avid,i,"save"s+to_string(i)+".txt");
-        GetCommentFromFile("save"s+to_string(i)+".txt",vec);
+		cout << "Fetching page: " << i << endl;
+		ParseComment(FetchVideoComment(avid, i),vec);
     }
 
-    ofstream ofs("out.txt");
+    ofstream ofs(savefile);
 
     for(auto& str:vec)
     {
         ofs<<str<<endl;
     }
 
-    return 0;
+	return 0;
+}
+
+int main()
+{
+	ProcessVideo(5158497, "out.txt");
+	return 0;
 }
